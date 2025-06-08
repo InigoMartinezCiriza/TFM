@@ -19,7 +19,6 @@ src:
 results:
 - chekpoints: modelos finales guardados para cada etapa del entrenamiento.
 - outputs: resultados del proceso de entrenamiento de cada etapa.
-- copy: copia de seguridad de los checkpoints y outputs.
 
 ## 📦 Requisitos
 - Python 3.12.3
