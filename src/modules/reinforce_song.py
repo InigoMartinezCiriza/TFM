@@ -155,11 +155,9 @@ def train_agent(env, agent, num_episodes=500, gamma=0.99, print_interval=10, rec
                     feat = actor_hidden_states_ep[t]
                 else:
                     feat = dense_feats[t]
-                # acción previa one‐hot (ceros si t==0)
-                prev_a = np.zeros(act_size, dtype=np.float32)
-                if t > 0:
-                    prev_a[ actions[t-1] ] = 1.0
-                critic_inputs.append( np.concatenate([feat, prev_a]) )
+                # acción actual one‐hot (ceros si t==0)
+                curr_a = np.eye(act_size, dtype=np.float32)[actions[t]]
+                critic_inputs.append( np.concatenate([feat, curr_a]) )
         # forma tensor (1, seq_len, actor_hidden_size+act_size)
         critic_inputs = tf.convert_to_tensor([critic_inputs], dtype=tf.float32)
 

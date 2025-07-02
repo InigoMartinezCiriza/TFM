@@ -35,9 +35,7 @@ class ActorModel(Model):
         self.input_size      = input_size
         self.hidden_size     = hidden_size
         self.output_size     = output_size
-        self.num_layers      = num_layers
         self.prob_connection = prob_connection
-        self.layer_type      = layer_type
         self.alpha           = alpha
 
         # --- Helper function to create constraint instance ---
@@ -55,6 +53,7 @@ class ActorModel(Model):
             # --- Create constraint instances specifically for this hidden layer ---
             kernel_sparse_constraint_hidden = _create_new_constraint_if_sparse(prob_connection)
             recurrent_sparse_constraint_hidden = None
+
             if 'GRU' in layer_type:
                 recurrent_sparse_constraint_hidden = _create_new_constraint_if_sparse(prob_connection)
 
@@ -172,9 +171,7 @@ class CriticModel(Model):
         self.actor_hidden_size = actor_hidden_size
         self.act_size          = act_size
         self.hidden_size       = hidden_size
-        self.num_layers        = num_layers
         self.prob_connection   = prob_connection
-        self.layer_type        = layer_type
         self.alpha             = alpha
 
         # --- Helper function to create constraint instance ---
@@ -341,24 +338,3 @@ class ActorCriticAgent:
         value, new_critic_hidden_states = self.critic(inp, hidden_states=critic_hidden_states, training=training)
         scalar_value = value[0, 0, 0]
         return scalar_value, new_critic_hidden_states
-        
-    def save_full_models(self, filepath_prefix):
-        actor_path = filepath_prefix + '_actor.keras'
-        critic_path = filepath_prefix + '_critic.keras'
-        self.actor.save(actor_path)
-        self.critic.save(critic_path)
-        print(f"Full models saved at {filepath_prefix}")
-
-    def load_full_models(self, filepath_prefix):
-        custom_objects = {
-            'ModifiedGRU': ModifiedGRU,
-            'SparseConstraint': SparseConstraint
-        }
-
-        actor_path = filepath_prefix + '_actor.keras'
-        critic_path = filepath_prefix + '_critic.keras'
-
-        self.actor = tf.keras.models.load_model(actor_path, compile=False, custom_objects=custom_objects)
-        self.critic = tf.keras.models.load_model(critic_path, compile=False, custom_objects=custom_objects)
-
-        print(f"Full models loaded from '{filepath_prefix}'")

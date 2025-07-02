@@ -41,14 +41,10 @@ def load_model(agent, obs_size, act_size, stage, ckpt_prefix):
     # --- Build Networks ---
     actor_input_shape = (None, None, obs_size)
 
-    # Calcular actor_hid_for_critic según layer_type
-    if agent.actor.layer_type == 'Dense':
-        actor_hid_for_critic = obs_size
-    else:
-        actor_hid_for_critic = agent.actor.hidden_size
-
+    # Calcular actor_hid_for_critic
+    actor_hid_for_critic = obs_size
+    actor_hid_for_critic = agent.actor.hidden_size
     critic_input_shape = (None, None, actor_hid_for_critic + act_size)
-
     agent.actor.build(actor_input_shape)
     agent.critic.build(critic_input_shape)
     print("Actor and Critic networks built.")
@@ -83,6 +79,7 @@ def load_model(agent, obs_size, act_size, stage, ckpt_prefix):
                 mask_r = np.load(rp)
                 layer.recurrent_constraint.mask = tf.constant(mask_r, dtype=layer.cell.W_rec.dtype)
             # Si `layer` es Dense, no existe W_rec y se omite
+            
     # Critic masks
     for i, layer in enumerate(agent.critic.hidden_layers):
         # 1) Kernel mask
@@ -111,19 +108,24 @@ def load_model(agent, obs_size, act_size, stage, ckpt_prefix):
     dummy_obs = np.zeros((1, 1, obs_size), dtype=np.float32)
 
     # 2) Obtenemos una “salida oculta” simulada del Actor con un state de ceros:
-    state0 = np.zeros((1, 1, obs_size), dtype=np.float32)
-    hidden_dense0 = agent.actor.get_hidden_dense(tf.convert_to_tensor(state0))
+    processed_dummy_input = agent.actor.input_fc(dummy_obs, training=False)
+    dummy_last_hidden_output = processed_dummy_input
+    for hidden_layer in agent.actor.hidden_layers:
+        if 'GRU' in agent.actor.layer_type:
+            dummy_last_hidden_output, _ = hidden_layer(dummy_last_hidden_output, training=False)
+        elif agent.actor.layer_type == 'Dense':
+             dummy_last_hidden_output = hidden_layer(dummy_last_hidden_output, training=False)
+    hd0 = dummy_last_hidden_output.numpy()[0, 0, :]
 
-    # 3) Concatenamos con “prev_a” one-hot vacío para simular la entrada al Crítico
-    prev_a0 = np.zeros((act_size,), dtype=np.float32)
-    prev_a0[0] = 1.0
-    hd0 = hidden_dense0.numpy()[0, 0, :]  # (actor_hidden_size,)
-    critic_feat0 = np.concatenate([hd0, prev_a0], axis=0)  # (actor_hidden_size + act_size,)
+    # 3) Concatenamos con “curr_a” one-hot vacío para simular la entrada al Crítico
+    dummy_curr_a0 = np.zeros((act_size,), dtype=np.float32)
+    dummy_curr_a0[0] = 1.0
+    critic_feat0 = np.concatenate([hd0, dummy_curr_a0], axis=0)
     dummy_critic_in = critic_feat0.reshape((1, 1, -1))
 
     # 4) Hacemos un dummy forward por el Crítico para inicializarlo
     with tf.GradientTape(persistent=True) as tape:
-        a_out, _ = agent.actor(dummy_obs,       training=True)
+        a_out, _ = agent.actor(dummy_obs, training=True)
         c_out, _ = agent.critic(dummy_critic_in, training=True)
         loss_a   = tf.reduce_mean(tf.square(a_out))
         loss_c   = tf.reduce_mean(tf.square(c_out))
