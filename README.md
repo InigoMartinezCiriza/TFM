@@ -24,7 +24,7 @@ results:
 - Python 3.12.3
 - Gymnasium
 - NumPy
-- PyTorch
+- Keras
 - Matplotlib
 - Seaborn
 - Jupyter (opcional)
